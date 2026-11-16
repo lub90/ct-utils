@@ -3,7 +3,7 @@
 Sections: Added / Changed / Fixed / Removed. Breaking changes are marked. Versions follow semver; in 0.x a minor bump
 is breaking and a patch is not.
 
-## 0.1.0 (Unreleased)
+## 0.1.0 (2026-11-16)
 
 ### Added
 
