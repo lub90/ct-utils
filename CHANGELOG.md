@@ -16,6 +16,7 @@ is breaking and a patch is not.
 - `.`: `CtPerson` (`{ id, name, detail? }`), the person type of `groupMembers`, `person` and `searchPersons`.
 - `.`: the generic KV store `KvBackend` with `ChurchToolsKv` (custom module categories) and `MemoryKv`, and
   `CategoryMissingError`.
+- `vitest` (>= 5.1.0) as an optional peer dependency: only `./testing` imports it.
 - `./testing`: `createFakeChurchTools(seed)`, an in-memory ChurchTools for tests and demos, with `FakeCtSeed`.
 - `./testing`: `FAKE_MARKER` (`'__CT_UTILS_FAKE__'`): every object the fake creates carries it in its code, so a
   consumer's dist check can refuse a production build that contains the fake.

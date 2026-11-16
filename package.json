@@ -18,7 +18,11 @@
         "check": "npm run lint && npm run typecheck && npm test && node --test 'scripts/*.test.mjs'"
     },
     "peerDependencies": {
-        "@churchtools/churchtools-client": ">=1.7.1"
+        "@churchtools/churchtools-client": ">=1.7.1",
+        "vitest": ">=5.1.0"
+    },
+    "peerDependenciesMeta": {
+        "vitest": { "optional": true }
     },
     "devDependencies": {
         "@churchtools/churchtools-client": "^1.7.3",

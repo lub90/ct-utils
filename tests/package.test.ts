@@ -50,4 +50,16 @@ describe('package', () => {
             expect(text, file).not.toContain('EXTENSION_KEY');
         }
     });
+
+    it('the testing entry\u2019s vitest import is an optional peer dependency', () => {
+        const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+        const testing = sourceFiles(join(ROOT, 'src', 'testing'), (p) => p.endsWith('.test.ts'));
+        // The shipped contract cases import vitest: a consumer of ./testing needs it, a consumer of . does not.
+        expect(testing.some((f) => /from\s*['"]vitest['"]/.test(readFileSync(f, 'utf8')))).toBe(true);
+        expect(pkg.peerDependencies.vitest).toBe('>=5.1.0');
+        expect(pkg.peerDependenciesMeta).toEqual({ vitest: { optional: true } });
+        // The client stays a required peer.
+        expect(pkg.peerDependencies['@churchtools/churchtools-client']).toBe('>=1.7.1');
+    });
 });
+

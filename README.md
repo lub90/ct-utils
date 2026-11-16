@@ -19,8 +19,9 @@ Depend on an exact tag, never on a branch:
 npm install github:lub90/ct-utils#v0.1.0
 ```
 
-`@churchtools/churchtools-client` (>= 1.7.1) is a peer dependency; install it in your project. npm builds the
-package when it installs it from Git (`prepare`).
+`@churchtools/churchtools-client` (>= 1.7.1) is a peer dependency; install it in your project. `ct-utils/testing`
+also needs `vitest` (>= 5.1.0, an optional peer dependency: the contract cases import it). npm builds the package when
+it installs it from Git (`prepare`).
 
 ## Entries
 
