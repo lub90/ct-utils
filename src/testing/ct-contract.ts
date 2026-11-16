@@ -73,20 +73,20 @@ export type CtContractSubject = CtApi & {
  * The name of everything the cases create (persons' last name, groups; categories add ` category`), so a consumer can
  * remove leftovers of a crashed run by it.
  */
-const tempLabel = (s: CtContractSubject): string => `${s.moduleKey} extension contract test`;
+export const tempLabel = (moduleKey: string): string => `${moduleKey} extension contract test`;
 
 /**
  * A throwaway person through `createPerson`, as an extension's setup would create one: without the privacy fields
  * first and, if the instance requires them, again with the first of each `validOptions` and today's date. Its removal
- * is registered before anything else happens to it.
+ * is registered before anything else happens to it. Needs the subject's `rights` and `provision`.
  */
-async function throwawayPerson(s: CtContractSubject): Promise<{ id: number; cmsUserId: string; person: NewPerson }> {
+export async function throwawayPerson(s: CtContractSubject): Promise<{ id: number; cmsUserId: string; person: NewPerson }> {
     const { admin, undo } = s.rights!;
     const md = await admin.personMasterdata();
     const cmsUserId = `${s.moduleKey}-contract-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     let person: NewPerson = {
         firstName: s.tempName,
-        lastName: tempLabel(s),
+        lastName: tempLabel(s.moduleKey),
         cmsUserId,
         statusId: md.statuses[0]!.id,
         departmentIds: [md.departments[0]!.id],
@@ -106,7 +106,7 @@ async function throwawayPerson(s: CtContractSubject): Promise<{ id: number; cmsU
 }
 
 /** Rights and ChurchTools' brief cache of them: waits until `check` passes, at most `seconds`. */
-async function eventually(check: () => Promise<void>, seconds = 30): Promise<void> {
+export async function eventuallyCt(check: () => Promise<void>, seconds = 30): Promise<void> {
     let last: unknown;
     for (let i = 0; i < seconds; i++) {
         try {
@@ -131,12 +131,12 @@ async function caseCategory(s: CtContractSubject, moduleId: number) {
  * A precondition of a case that writes and then removes a whole assignment. A leftover (e.g. from a crashed run) fails
  * the case with what to remove, instead of skipping it silently.
  */
-function requireUnassigned(row: DomainRight | undefined, what: string): void {
+export function requireUnassigned(row: DomainRight | undefined, what: string): void {
     if (row !== undefined) throw new Error(`Leftover assignment of ${what} (dataId ${JSON.stringify(row.dataId)}); remove it on the test instance and run again`);
 }
 
 /** A second category the admin sees besides the cases' own; its absence fails the case (the subject must offer one). */
-async function secondCategory(s: CtContractSubject, moduleId: number) {
+export async function secondCategory(s: CtContractSubject, moduleId: number) {
     const other = (await s.rights!.admin.categories(moduleId)).find((c) => c.id !== s.rights!.categoryId);
     if (!other) throw new Error('The admin sees no second category of the module; the save and revoke cases need one');
     return other;
@@ -146,7 +146,7 @@ async function secondCategory(s: CtContractSubject, moduleId: number) {
  * `save [a]`, then `save [b]` on one assignment that doesn't exist yet: reads back `[a, b]` (`save` adds, never
  * replaces). The assignment is removed again (registered before the first write), also when the case fails.
  */
-async function expectSaveAdds(
+export async function expectSaveAdds(
     admin: CtApi,
     undo: (label: string, run: () => Promise<void>) => void,
     target: { domainType: 'group_role' | 'person'; domainId: number; authId: number; what: string },
@@ -164,13 +164,13 @@ async function expectSaveAdds(
     const save = (id: number) => admin.applyPermissions([{ domainType, domainId, operation: 'save', authId, dataId: [id] }]);
     try {
         await save(a);
-        await eventually(async () => expect((await row())?.dataId).toEqual([a]));
+        await eventuallyCt(async () => expect((await row())?.dataId).toEqual([a]));
         await save(b);
-        await eventually(async () => expect(sorted((await row())?.dataId)).toEqual(sorted([a, b])));
+        await eventuallyCt(async () => expect(sorted((await row())?.dataId)).toEqual(sorted([a, b])));
     } finally {
         if ((await row()) !== undefined) await clear();
     }
-    await eventually(async () => expect(await row()).toBeUndefined());
+    await eventuallyCt(async () => expect(await row()).toBeUndefined());
 }
 
 /** The cases are written once and run against the fake now and against the real test instance later. */
@@ -347,11 +347,11 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
                 },
             ]);
             try {
-                await eventually(async () => expect((await person.globalPermissions())['view custom data']).toContain(categoryId));
+                await eventuallyCt(async () => expect((await person.globalPermissions())['view custom data']).toContain(categoryId));
             } finally {
                 await revoke();
             }
-            await eventually(async () => expect((await person.globalPermissions())['view custom data']).not.toContain(categoryId));
+            await eventuallyCt(async () => expect((await person.globalPermissions())['view custom data']).not.toContain(categoryId));
         });
 
         it('bulk with one bad entry changes nothing', async (ctx) => {
@@ -448,7 +448,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
                 },
             ]);
             try {
-                await eventually(async () => {
+                await eventuallyCt(async () => {
                     const holder = (await admin.permissionHolders(authId, categoryId)).find((h) => h.personId === personId);
                     expect(holder?.originTypes).toContain('person');
                 });
@@ -459,7 +459,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             } finally {
                 await revoke();
             }
-            await eventually(async () =>
+            await eventuallyCt(async () =>
                 expect((await admin.permissionHolders(authId, categoryId)).some((h) => h.personId === personId && h.originTypes.includes('person'))).toBe(false),
             );
         });
@@ -476,7 +476,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             expect((await admin.permissionHolders(authId, categoryId)).some((h) => h.personId === memberId && h.originTypes.includes('groupRole'))).toBe(false);
             await admin.applyPermissions(changes('save'));
             try {
-                await eventually(async () => {
+                await eventuallyCt(async () => {
                     const holder = (await admin.permissionHolders(authId, categoryId)).find((h) => h.personId === memberId);
                     expect(holder?.originTypes).toContain('groupRole');
                 });
@@ -486,7 +486,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             } finally {
                 await revoke();
             }
-            await eventually(async () =>
+            await eventuallyCt(async () =>
                 expect((await admin.permissionHolders(authId, categoryId)).some((h) => h.personId === memberId && h.originTypes.includes('groupRole'))).toBe(false),
             );
         });
@@ -504,11 +504,11 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             expect(await row()).toBeUndefined();
             await admin.applyPermissions(change('save'));
             try {
-                await eventually(async () => expect((await row())?.dataId).toEqual([categoryId]));
+                await eventuallyCt(async () => expect((await row())?.dataId).toEqual([categoryId]));
             } finally {
                 await revoke();
             }
-            await eventually(async () => expect(await row()).toBeUndefined());
+            await eventuallyCt(async () => expect(await row()).toBeUndefined());
         });
 
         // A setup saves into assignments the role or person may hold already (an existing group, an operator with own
@@ -563,20 +563,20 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const clear = () => admin.applyPermissions([{ domainType: 'status', domainId: id, operation: 'replace', authId, dataId: [] }]);
             undo(`status ${id}: view custom category removed (status case)`, async () => {
                 if ((await row()) !== undefined) await clear();
-                await eventually(async () => expect(await row()).toBeUndefined());
+                await eventuallyCt(async () => expect(await row()).toBeUndefined());
             });
 
             // 1. `save` with domainType status grants the right on the safe categories, read back from the status.
             await admin.applyPermissions([{ domainType: 'status', domainId: id, operation: 'save', authId, dataId: picked }]);
             try {
-                await eventually(async () => expect(await ids()).toEqual([...picked].sort((a, b) => a - b)));
+                await eventuallyCt(async () => expect(await ids()).toEqual([...picked].sort((a, b) => a - b)));
                 expect(sorted(await others())).toEqual(sorted(before)); // the status' other rights are untouched
 
                 // 3. A person of that status (if any exists) is a holder with origin `status` and this status as domain.
                 // ChurchTools' holder list may lag, so look for up to 30 s before calling it not measurable.
                 let total = 0;
                 let holders: Awaited<ReturnType<typeof admin.permissionHolders>> = [];
-                await eventually(async () => {
+                await eventuallyCt(async () => {
                     const all = await admin.permissionHolders(authId, first);
                     total = all.length;
                     holders = all.filter((h) => h.sources?.some((x) => x.domainType === 'status' && x.domainId === id));
@@ -593,13 +593,13 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
                 // the other. With only one category it is `[id]` → `[]`.
                 const rest = picked.filter((x) => x !== first);
                 await admin.applyPermissions([{ domainType: 'status', domainId: id, operation: 'replace', authId, dataId: rest }]);
-                if (rest.length === 0) await eventually(async () => expect(await row()).toBeUndefined());
-                else await eventually(async () => expect(await ids()).toEqual(rest));
+                if (rest.length === 0) await eventuallyCt(async () => expect(await row()).toBeUndefined());
+                else await eventuallyCt(async () => expect(await ids()).toEqual(rest));
                 expect(sorted(await others())).toEqual(sorted(before));
             } finally {
                 if ((await row()) !== undefined) await clear();
             }
-            await eventually(async () => expect(await row()).toBeUndefined());
+            await eventuallyCt(async () => expect(await row()).toBeUndefined());
             // Status 0 was never written.
             expect(await admin.domainPermissions('status', 0)).toEqual(zero);
         }, 120_000);
@@ -630,7 +630,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const { admin, undo } = s.rights;
             const { adminId, removeCategory } = s.provision;
             const moduleId = (await s.moduleId(s.moduleKey)) as number;
-            const name = `${tempLabel(s)} category`;
+            const name = `${tempLabel(s.moduleKey)} category`;
             const created = await admin.createCategory(moduleId, { name, shorty: 'ctpTmp' });
             undo(`temporary category ${created.id} deleted`, () => removeCategory(moduleId, created.id));
             expect(created).toMatchObject({ name, shorty: 'ctpTmp' });
@@ -640,7 +640,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const grant = (operation: 'save' | 'delete') => admin.applyPermissions([{ domainType: 'person', domainId: adminId, operation, authId, dataId: [created.id] }]);
             undo(`person ${adminId}: view custom category on the temporary category removed`, () => grant('delete'));
             await grant('save');
-            await eventually(async () => expect((await admin.categories(moduleId)).find((c) => c.id === created.id)).toEqual({ id: created.id, name, shorty: 'ctpTmp' }));
+            await eventuallyCt(async () => expect((await admin.categories(moduleId)).find((c) => c.id === created.id)).toEqual({ id: created.id, name, shorty: 'ctpTmp' }));
         });
 
         it('deleteCategory removes a throwaway category (needs delete custom category on it)', async (ctx) => {
@@ -649,7 +649,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const { admin, undo } = s.rights;
             const { adminId, removeCategory } = s.provision;
             const moduleId = (await s.moduleId(s.moduleKey)) as number;
-            const name = `${tempLabel(s)} category`;
+            const name = `${tempLabel(s.moduleKey)} category`;
             const created = await admin.createCategory(moduleId, { name, shorty: 'ctpDel' });
             // Registered first, so it runs last (LIFO) and only deletes the category if the case failed before the delete.
             let deleted = false;
@@ -663,11 +663,11 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
                 undo(`person ${adminId}: ${key} on the temporary category removed (deleteCategory case)`, () => grant('delete'));
                 await grant('save');
             }
-            await eventually(async () => expect((await admin.categories(moduleId)).some((c) => c.id === created.id)).toBe(true));
-            await eventually(async () => expect((await admin.globalPermissions())['delete custom category']).toContain(created.id));
-            await eventually(() => admin.deleteCategory(moduleId, created.id));
+            await eventuallyCt(async () => expect((await admin.categories(moduleId)).some((c) => c.id === created.id)).toBe(true));
+            await eventuallyCt(async () => expect((await admin.globalPermissions())['delete custom category']).toContain(created.id));
+            await eventuallyCt(() => admin.deleteCategory(moduleId, created.id));
             deleted = true;
-            await eventually(async () => expect((await admin.categories(moduleId)).some((c) => c.id === created.id)).toBe(false));
+            await eventuallyCt(async () => expect((await admin.categories(moduleId)).some((c) => c.id === created.id)).toBe(false));
         });
 
         it('view custom category with dataId -1 lists a category created later', async (ctx) => {
@@ -681,14 +681,14 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             undo(`person ${personId}: view custom category -1 removed`, () => grant('delete'));
             await grant('save');
             // Measured: the origins list expands -1 to the IDs of the current categories; the direct grant keeps -1.
-            await eventually(async () => {
+            await eventuallyCt(async () => {
                 const row = (await admin.domainPermissions('person', personId)).find((r) => r.authId === authId);
                 expect(row?.dataId).toEqual([-1]);
             });
-            const name = `${tempLabel(s)} category`;
+            const name = `${tempLabel(s.moduleKey)} category`;
             const created = await admin.createCategory(moduleId, { name, shorty: 'ctpTm2' });
             undo(`temporary category ${created.id} deleted (-1 case)`, () => s.provision!.removeCategory(moduleId, created.id));
-            await eventually(async () => expect((await person.categories(moduleId)).map((c) => c.id)).toContain(created.id));
+            await eventuallyCt(async () => expect((await person.categories(moduleId)).map((c) => c.id)).toContain(created.id));
         });
 
         it('create a group with the default role: its member reads it', async (ctx) => {
@@ -697,12 +697,12 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const { admin, undo, memberId, personApi } = s.rights;
             const role = await admin.defaultRole(2);
             expect(role).toBeGreaterThan(0);
-            const groupId = await admin.createGroup(tempLabel(s), 2);
+            const groupId = await admin.createGroup(tempLabel(s.moduleKey), 2);
             undo(`temporary group ${groupId} deleted`, () => s.provision!.removeGroup(groupId));
             await admin.addMember(groupId, memberId, role);
             const member = await personApi();
             // Rights and memberships take a moment to show.
-            await eventually(async () => expect((await member.group(groupId)).memberCount).toBeGreaterThan(0));
+            await eventuallyCt(async () => expect((await member.group(groupId)).memberCount).toBeGreaterThan(0));
             expect(await admin.groupDetails(groupId)).toMatchObject({ id: groupId, groupTypeId: 2, groupStatusId: 1 });
             const roles = await admin.groupRoles(groupId);
             expect(roles.length).toBeGreaterThan(0);
@@ -713,7 +713,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const s = await make();
             if (!s.rights || !s.provision) return ctx.skip();
             const { admin, undo } = s.rights;
-            const groupId = await admin.createGroup(tempLabel(s), 2);
+            const groupId = await admin.createGroup(tempLabel(s.moduleKey), 2);
             // Registered right after the create; once deleted, there is nothing left to undo.
             let deleted = false;
             undo(`temporary group ${groupId} deleted (deleteGroup case)`, async () => {
@@ -747,7 +747,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
                 // Measured: without the privacy fields the 400 names their valid IDs (the only place they are listed).
                 const md = await admin.personMasterdata();
                 const refused = await admin
-                    .createPerson({ firstName: s.tempName, lastName: tempLabel(s), cmsUserId: `${s.moduleKey}-contract-np-${Date.now()}`, statusId: md.statuses[0]!.id, departmentIds: [md.departments[0]!.id], campusId: md.campuses[0]!.id })
+                    .createPerson({ firstName: s.tempName, lastName: tempLabel(s.moduleKey), cmsUserId: `${s.moduleKey}-contract-np-${Date.now()}`, statusId: md.statuses[0]!.id, departmentIds: [md.departments[0]!.id], campusId: md.campuses[0]!.id })
                     .catch((e: unknown) => e);
                 // A create that wrongly succeeded is removed by its id (registered right away).
                 if (typeof refused === 'number') s.rights.undo(`temporary person ${refused} deleted (privacy case)`, () => s.provision!.removePerson(refused));
@@ -759,7 +759,7 @@ export function defineCtContract(name: string, make: () => Promise<CtContractSub
             const { id, cmsUserId, person } = await throwawayPerson(s);
             expect(id).toBeGreaterThan(0);
             expect(await admin.personCmsUserId(id)).toBe(cmsUserId);
-            expect(await admin.personLogin(id)).toEqual({ firstName: s.tempName, lastName: tempLabel(s), cmsUserId });
+            expect(await admin.personLogin(id)).toEqual({ firstName: s.tempName, lastName: tempLabel(s.moduleKey), cmsUserId });
             // The same login again (the name is a duplicate on purpose, `force`): refused on the cmsUserId field.
             const again = await admin.createPerson(person).catch((e: unknown) => e);
             if (typeof again === 'number') s.rights.undo(`temporary person ${again} deleted (duplicate case)`, () => s.provision!.removePerson(again));

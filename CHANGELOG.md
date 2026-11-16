@@ -23,6 +23,10 @@ is breaking and a patch is not.
   for any `CtApi` (the fake or a real instance). The subject names a required `tempName` (first name of the persons
   the cases create) and an optional `rights.statusCategoryIds` (the categories the status case may grant a view right
   on).
+- `./testing`: the contract helpers for a consumer's own contract cases: `eventuallyCt` (retries a check while
+  ChurchTools' rights cache catches up), `throwawayPerson`, `requireUnassigned`, `secondCategory`, `expectSaveAdds`, and
+  `tempLabel(moduleKey)` (`'<moduleKey> extension contract test'`, the name of every person, group and category the
+  cases create, so leftovers can be found).
 
 ### Removed
 
