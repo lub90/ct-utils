@@ -31,7 +31,8 @@ describe('package', () => {
 
     it('the main entry does not import the testing entry', () => {
         const testingDir = join(ROOT, 'src', 'testing');
-        const files = sourceFiles(join(ROOT, 'src'), (p) => p === testingDir);
+        // Test files may use the testing entry (they are not part of the build); only shipped sources are checked.
+        const files = sourceFiles(join(ROOT, 'src'), (p) => p === testingDir || p.endsWith('.test.ts'));
         expect(files.length).toBeGreaterThan(0);
         // Import and export specifiers only: `from '...testing...'`, `import('...testing...')`, `import '...testing...'`.
         const specifier = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"][^'"]*testing[^'"]*['"]/;
