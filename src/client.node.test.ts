@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { inspect } from 'node:util';
-import { describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AxiosRequestConfig } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { createClient, MissingBaseUrlError } from './client';
@@ -110,5 +112,45 @@ describe('Node', () => {
         fail = false;
         await client.get('/whoami');
         expect(sent).toEqual(['Login tok', 'Login tok']);
+    });
+
+    describe('with the real Node http adapter', () => {
+        let server: Server;
+        let port = 0;
+        beforeAll(async () => {
+            server = createServer((req, res) => {
+                const status = Number((req.url ?? '').match(/\/api\/status\/(\d+)/)?.[1] ?? 500);
+                res.statusCode = status;
+                res.setHeader('content-type', 'application/json');
+                res.end('{}');
+            });
+            await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+            port = (server.address() as AddressInfo).port;
+        });
+        afterAll(async () => {
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        });
+
+        async function freePort(): Promise<number> {
+            const probe = createServer();
+            await new Promise<void>((resolve) => probe.listen(0, '127.0.0.1', resolve));
+            const free = (probe.address() as AddressInfo).port;
+            await new Promise<void>((resolve) => probe.close(() => resolve()));
+            return free;
+        }
+
+        it.each([401, 403, 500, 'refused'] as const)('an error (%s) does not contain the token anywhere', async (kind) => {
+            const target = kind === 'refused' ? await freePort() : port;
+            const client = createClient({ baseUrl: `http://127.0.0.1:${target}`, loginToken: TOKEN });
+            const err = await client.get(`/status/${kind}`).then(
+                () => new Error('expected a rejection'),
+                (e: unknown) => e as Error,
+            );
+            expect(err.message).not.toBe('expected a rejection');
+            expect(containsDeep(err, TOKEN)).toBe(false);
+            expect(inspect(err, { depth: null, showHidden: true })).not.toContain(TOKEN);
+            expect(JSON.stringify(err, Object.getOwnPropertyNames(err))).not.toContain(TOKEN);
+        });
     });
 });

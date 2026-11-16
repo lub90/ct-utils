@@ -58,18 +58,7 @@ export function retryAfterMs(response: { headers?: unknown }, now: number = Date
     return Math.max(MIN_RETRY_MS, ms);
 }
 
-/**
- * The one ChurchTools client of the app (browser or Node). Paths passed to it start with `/` and omit `/api` (the client builds
- * `${baseUrl}/api${path}` and strips a trailing slash from the base URL).
- *
- * CSRF: `setLoadCSRFForAPI()` (client >= 1.7.1) makes every REST write fetch `GET /csrftoken` once and send it as
- * `CSRF-Token`. ChurchTools doesn't require it for REST writes yet, but may; sending it is harmless, so it is on.
- *
- * Options: `baseUrl` (browser default: `instanceBaseUrl()`; required outside a browser, else `MissingBaseUrlError`),
- * `loginToken` (sent as `Authorization: Login <token>`, as ct-radius does, without the client's own 401 re-login),
- * `timeoutMs` (per-request timeout). A rejected request never carries the login token: an interceptor removes
- * `Authorization` from the error's config and request headers before rethrowing.
- */
+/** Options of `createClient`; see there. */
 export interface ClientOptions {
     baseUrl?: string;
     loginToken?: string;
@@ -98,6 +87,38 @@ function stripAuthorization(headers: unknown): void {
     }
 }
 
+/** Removes the `request` property (a live `ClientRequest` in Node); falls back to `undefined` if it can't be deleted. */
+function dropRequest(holder: { request?: unknown } | undefined): void {
+    if (!holder || typeof holder !== 'object' || !('request' in holder)) return;
+    try {
+        delete holder.request;
+    } catch {
+        /* fall through */
+    }
+    if ('request' in holder) {
+        try {
+            holder.request = undefined;
+        } catch {
+            /* nothing more to do */
+        }
+    }
+}
+
+/**
+ * The one ChurchTools client of the app (browser or Node). Paths passed to it start with `/` and omit `/api` (the client builds
+ * `${baseUrl}/api${path}` and strips a trailing slash from the base URL).
+ *
+ * CSRF: `setLoadCSRFForAPI()` (client >= 1.7.1) makes every REST write fetch `GET /csrftoken` once and send it as
+ * `CSRF-Token`. ChurchTools doesn't require it for REST writes yet, but may; sending it is harmless, so it is on.
+ *
+ * Options: `baseUrl` (browser default: `instanceBaseUrl()`; required outside a browser, else `MissingBaseUrlError`),
+ * `loginToken` (sent as `Authorization: Login <token>`, as ct-radius does, without the client's own 401 re-login),
+ * `timeoutMs` (per-request timeout). A rejected request never carries the login token: an interceptor removes
+ * `Authorization` from the error's config headers and drops the error's request objects (`error.request`,
+ * `error.response.request`: with the Node http adapter these are the live `ClientRequest`, which holds the header in
+ * several places, socket and agent included) before rethrowing. Note: the client's own debug error logger and
+ * `notifyUnauthenticated` callbacks run before this strip; both are off by default.
+ */
 export function createClient(options: ClientOptions = {}): ChurchToolsClient {
     const client = new ChurchToolsClient();
     const ax = (client as unknown as { ax: AxLike }).ax;
@@ -108,11 +129,11 @@ export function createClient(options: ClientOptions = {}): ChurchToolsClient {
     if (options.loginToken !== undefined) {
         ax.defaults.headers.common['Authorization'] = 'Login ' + options.loginToken;
         ax.interceptors.response.use(undefined, (error: unknown) => {
-            const e = error as { config?: { headers?: unknown }; request?: { headers?: unknown }; response?: { config?: { headers?: unknown }; request?: { headers?: unknown } } };
+            const e = error as { config?: { headers?: unknown }; request?: unknown; response?: { config?: { headers?: unknown }; request?: unknown } };
             stripAuthorization(e?.config?.headers);
-            stripAuthorization(e?.request?.headers);
             stripAuthorization(e?.response?.config?.headers);
-            stripAuthorization(e?.response?.request?.headers);
+            dropRequest(e);
+            dropRequest(e?.response);
             return Promise.reject(error);
         });
     }
