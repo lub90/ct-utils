@@ -6,29 +6,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AxiosRequestConfig } from 'axios';
 import type { AxiosInstance } from 'axios';
 import { createClient, MissingBaseUrlError } from './client';
+import { containsDeep } from './test-helpers';
 
 /** `ax` is `private` in the client's typings but public at runtime. */
 const ax = (client: unknown): AxiosInstance => (client as { ax: AxiosInstance }).ax;
 
 const BASE = 'https://x.example';
 const TOKEN = 'tok-dummy-value';
-
-/** Walks the whole object graph (own enumerable and hidden properties, cycles safe) looking for `needle` in any string. */
-function containsDeep(value: unknown, needle: string, seen = new Set<unknown>()): boolean {
-    if (typeof value === 'string') return value.includes(needle);
-    if (!value || typeof value !== 'object' || seen.has(value)) return false;
-    seen.add(value);
-    return Reflect.ownKeys(value).some((key) => {
-        if (typeof key === 'string' && key.includes(needle)) return true;
-        let inner: unknown;
-        try {
-            inner = (value as Record<PropertyKey, unknown>)[key];
-        } catch {
-            return false;
-        }
-        return containsDeep(inner, needle, seen);
-    });
-}
 
 describe('Node', () => {
     it('without baseUrl outside a browser it throws MissingBaseUrlError', () => {
