@@ -1,0 +1,6 @@
+# Block list for the pre-commit check (scripts/check-private.mjs). Normally the check reads the list of the sibling
+# ct-pass-store checkout (or the file named by $CT_PRIVATE_TERMS); to use a list of its own, copy this file to
+# .private-terms (gitignored, never commit it) and replace these INVENTED examples. One term per line, # starts a
+# comment, case-insensitive; "## allow: <glob>, <glob>" after a term ignores hits in matching paths.
+Exemplary Chapel Riverside
+exampleparish.church.tools

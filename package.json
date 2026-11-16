@@ -1,0 +1,33 @@
+{
+    "name": "ct-utils",
+    "version": "0.1.0",
+    "description": "Framework-free ChurchTools and KV-store helpers for browser and Node.",
+    "license": "MIT",
+    "type": "module",
+    "files": ["dist"],
+    "exports": {
+        ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+        "./testing": { "types": "./dist/testing/index.d.ts", "import": "./dist/testing/index.js" }
+    },
+    "scripts": {
+        "prepare": "tsc -p tsconfig.build.json",
+        "build": "tsc -p tsconfig.build.json",
+        "test": "vitest run",
+        "lint": "eslint .",
+        "typecheck": "tsc --noEmit",
+        "check": "npm run lint && npm run typecheck && npm test && node --test 'scripts/*.test.mjs'"
+    },
+    "peerDependencies": {
+        "@churchtools/churchtools-client": ">=1.7.1"
+    },
+    "devDependencies": {
+        "@churchtools/churchtools-client": "^1.7.3",
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^26.6.6",
+        "eslint": "^10.15.0",
+        "jsdom": "^29.1.1",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.72.2",
+        "vitest": "^5.1.0"
+    }
+}
