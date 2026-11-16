@@ -1,5 +1,5 @@
 /**
- * Every fake module under `src/testing/` carries `FAKE_MARKER` in its code (not in a comment), so that a consumer's
+ * Every module under `src/fake/` (the `ct-utils/fake` entry) carries `FAKE_MARKER` in its code (not in a comment), so that a consumer's
  * dist check notices the fake in a production build. Each module is bundled and minified on its own, with only its
  * main export used, and the marker must survive. The build goes to a temporary directory, never into the repository.
  */
@@ -17,8 +17,8 @@ const MAIN_EXPORT: Record<string, string> = {
     'marker.ts': 'tagFake',
     'fake-churchtools.ts': 'createFakeChurchTools',
 };
-/** Modules of the testing entry that are not fake code: the entry itself and the contract cases (they import vitest). */
-const NOT_FAKE = ['index.ts', 'kv-contract.ts', 'ct-contract.ts'];
+/** Modules of the fake entry that are not fake code themselves: the entry, which only re-exports. */
+const NOT_FAKE = ['index.ts'];
 
 /** Bundles `export default <name>` of the module, minified, and returns the code. */
 async function bundle(file: string, name: string): Promise<string> {
@@ -52,17 +52,17 @@ async function bundle(file: string, name: string): Promise<string> {
     }
 }
 
-describe('fake marker in src/testing', () => {
+describe('fake marker in src/fake', () => {
     it('is the documented string', () => {
         expect(FAKE_MARKER).toBe('__CT_UTILS_FAKE__');
     });
 
-    /** Every file below src/testing (any depth, any kind) except tests. */
+    /** Every file below src/fake (any depth, any kind) except tests. */
     const walk = (dir: string): string[] =>
         fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.relative(DIR, path.join(dir, e.name))]));
     const modules = walk(DIR).filter((f) => !/\.test\.[jt]s$/.test(f));
 
-    it('knows every module of the testing entry', () => {
+    it('knows every module of the fake entry', () => {
         expect(modules.sort()).toEqual([...Object.keys(MAIN_EXPORT), ...NOT_FAKE].sort());
     });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeChurchTools, type FakeCtSeed } from './fake-churchtools.js';
+import { createFakeChurchTools, type FakeCtSeed } from '../fake/fake-churchtools.js';
 import { defineCtContract } from './ct-contract.js';
 import { CtForbiddenError, CtHttpError, CtRateLimitedError, NotAuthenticatedError } from '../errors.js';
 import type { Permissions } from '../types.js';

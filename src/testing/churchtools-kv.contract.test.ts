@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { ChurchToolsKv } from '../kv/churchtools-kv.js';
 import type { CtValue } from '../types.js';
-import { createFakeChurchTools } from './fake-churchtools.js';
+import { createFakeChurchTools } from '../fake/fake-churchtools.js';
 import { defineKvContract } from './kv-contract.js';
 
 function fakeKv(seed: Record<string, string[]>, options: { shortyOf?: (name: string) => string; extraCategories?: { name: string; shorty: string }[]; key?: string } = {}) {

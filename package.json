@@ -7,7 +7,8 @@
     "files": ["dist"],
     "exports": {
         ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-        "./testing": { "types": "./dist/testing/index.d.ts", "import": "./dist/testing/index.js" }
+        "./testing": { "types": "./dist/testing/index.d.ts", "import": "./dist/testing/index.js" },
+        "./fake": { "types": "./dist/fake/index.d.ts", "import": "./dist/fake/index.js" }
     },
     "scripts": {
         "prepare": "tsc -p tsconfig.build.json",

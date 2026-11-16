@@ -28,7 +28,8 @@ it installs it from Git (`prepare`).
 | Import | Contents |
 | --- | --- |
 | `ct-utils` | the library itself |
-| `ct-utils/testing` | test helpers (fakes, fixtures) for consumers' tests; never imported by the main entry |
+| `ct-utils/testing` | test helpers for consumers' tests: the contract cases and their helpers (import `vitest`), and the fake re-exported; never imported by the main entry |
+| `ct-utils/fake` | the fake ChurchTools alone (`createFakeChurchTools`, `FakeCtSeed`, `FAKE_MARKER`), without `vitest`: import it from dev and demo code; tests import `ct-utils/testing` |
 
 The package is ESM only (`"type": "module"`), with type declarations.
 
